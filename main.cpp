@@ -19,6 +19,8 @@ enum InstrType {
 	NOT_MATCH		      = 7,
 };
 
+// Models the output of the Core, which is the new PC plus the bit indicating whether 
+// the returned instruction refers to the active character or not.
 class CoreOUT {
 	private:
 		unsigned short PC;
@@ -37,6 +39,7 @@ class CoreOUT {
 		bool isActive(){return active;}
 };
 
+// Wrapper around the 16bit instruction for easy retrieval of type, data and easy printing.
 class Instruction {
 	private:
 		unsigned short instr;
@@ -52,20 +55,20 @@ class Instruction {
 		unsigned short getData(){ return instr % ( 1 << (BITS_INSTR - BITS_INSTR_TYPE));};
 		
 		
-		void printType(){
+		void printType(int PC){
 			switch (this->getType())
 			{
 			case 0:
 				printf("ACCEPT");
 				break;
 			case 1:
-				printf("SPLIT");
+				printf("SPLIT{%d,%d}", PC, this->getData());
 				break;
 			case 2:
-				printf("MATCH");
+				printf("MATCH(%c)", this->getData());
 				break;
 			case 3:
-				printf("JMP");
+				printf("JMP(%d)", this->getData());
 				break;
 			case 4:
 				printf("END_WITHOUT_ACCEPTING");
@@ -77,7 +80,7 @@ class Instruction {
 				printf("ACCEPT_PARTIAL");
 				break;
 			case 7:
-				printf("NOT_MATCH");
+				printf("NOT_MATCH(%c)", this->getData());
 				break;
 			default:
 				printf("UNKNOWN");
@@ -119,9 +122,9 @@ class Instruction {
 			}
 
 		};
-		// abstract print? nah just copy objdump.
 };
 
+// Container for all the buffers - permits to instantiate a variable number of buffers.
 class Buffers {
 	private:
 		vector<queue<unsigned short>> buffers;
@@ -135,10 +138,27 @@ class Buffers {
 			}
 		}
 
-		queue<unsigned short> getFIFO(int n){return buffers[n];}
-		//int getCurrent(){return buffers[activeBuffer];};
+		void flush(){
+			for (int i = 0; i < size; i++){
+				while (!buffers[i].empty()){
+					buffers[i].pop();
+				}
+			}
+		}
+
 		bool isEmpty(unsigned short target){
 			return buffers[target].empty();
+		}
+
+		bool areAllEmpty(){
+			bool areEmpty = true;
+			for (int i = 0; i < size; i++){
+				if (!buffers[i].empty()){
+					areEmpty = false;
+					break;
+				}
+			}
+			return areEmpty;
 		}
 
 		unsigned short getPC(unsigned short target){
@@ -165,12 +185,10 @@ class Buffers {
 
 class Core {
 	private:
-		Instruction* program;
-		Buffers* buffers;
+		Instruction* program; // Stage 1 accesses program memory to retrieve instruction.
 		
-		// String accepted
+		// Signals (as seen from HDL)
 		bool accept;
-		// Seen from HDL 
 		bool valid;
 		bool running;
 
@@ -180,18 +198,28 @@ class Core {
 		unsigned short PC12;
 
 		//settings
-		bool verbose = true;
+		bool verbose;
 
 	public:
-		Core(Instruction* p, Buffers* b){
-			buffers = b;
+		Core(Instruction* p, bool dbg = false){
 			program = p;
 			accept = false;
 			valid = false;
 			running = true;
 			s12 = NULL;
 			s23 = NULL;
-			PC12 = -1;
+			PC12 = 0;
+			verbose = dbg;
+		}
+
+		void reset(){
+			accept = false;
+			valid = false;
+			running = true;
+			s12 = NULL;
+			s23 = NULL;
+			PC12 = NULL;
+
 		}
 
 		bool isAccepted(){return accept;}
@@ -213,13 +241,14 @@ class Core {
 		unsigned short getPC12(){return PC12;}
 
 		void stage1(){
+			// Sets s12 to NULL if 
 			s12 = NULL;
 		}
 		void stage1(unsigned short PC){
 			// WRONG; NEEDS TO GET PC FROM BUFFERS.
 			s12 = &program[PC];
 			PC12 = PC;
-			if (verbose) { printf("\t(PC%x)(S1) ",PC); s12->printType(); printf("\n");}
+			if (verbose) { printf("\t(PC%d)(S1) ",PC); s12->printType(PC); printf("\n");}
 		};
 
 		CoreOUT stage2(unsigned short sPC12, Instruction* stage12, char currentChar){
@@ -230,15 +259,12 @@ class Core {
 			accept = false;
 			valid = false;
 
-			if (verbose) { printf("\t(PC%x)(S2) ", sPC12); stage12->printType();printf("\n");}
+			if (verbose) { printf("\t(PC%d)(S2) ", sPC12); stage12->printType(sPC12);printf("\n");}
 
 			switch(stage12->getType()){
-				//TODO: check values and add end without matching.
-				case ACCEPT:
 
-					//TODO: if end of string
-					running = false;
-					accept = true;
+				case ACCEPT:
+					if (currentChar == '\0') accept = true;
 					newPC = CoreOUT();
 					break;
 
@@ -248,34 +274,37 @@ class Core {
 					break;
 
 				case MATCH:
-
 					if (char(stage12->getData())==currentChar){
 						valid = true;
 						newPC = CoreOUT( sPC12+1, false);
 						if (verbose) { printf("\t\tCharacters matched: input %c to %c\n", currentChar, char(stage12->getData()));}
 					} else {
 						if (verbose) { printf("\t\tCharacters not matched: input %c to %c\n", currentChar, char(stage12->getData()));}
-						newPC = CoreOUT() ;
+						newPC = CoreOUT();
 					}
-
 					break;
 
 				case JMP:
 					valid = true;
 					newPC = (CoreOUT(stage12->getData(), true));
 					break;
+
+				case END_WITHOUT_ACCEPTING:
+					running = false;
+					newPC = CoreOUT();
+					break;
+
 				case MATCH_ANY:
 					valid = true;
 					newPC = (CoreOUT(sPC12+1, false));
 					break;
-				case ACCEPT_PARTIAL:
 
+				case ACCEPT_PARTIAL:
 					accept = true;
 					newPC = CoreOUT();
-
 					break;
-				case NOT_MATCH:
 
+				case NOT_MATCH:
 					if (char(stage12->getData())!=currentChar){
 						valid = true;
 						newPC = CoreOUT( sPC12+1, false);
@@ -285,18 +314,18 @@ class Core {
 					break;
 
 				default:
-					//TODO some kind of error msg
+					fprintf(stderr, "[X] Malformed instruction found.");
 					newPC =  CoreOUT();
 					break;
-					}
-
+			}
 			return newPC;
-
-
 		};
+
 		CoreOUT stage3(Instruction* stage23){
-			if (verbose) { printf("\t(S3)"); stage23->printType(); printf("\n");}
+			if (verbose) { printf("\t(S3)"); stage23->printType(-1); printf("\n");}
 			CoreOUT newPC = CoreOUT(stage23->getData(), true);
+
+			//Shouldn't write backwards, but since stage 3 is the last operation it doesn't cause problems.
 			s23 = NULL;
 			return newPC;
 		};
@@ -304,65 +333,79 @@ class Core {
 
 class Manager {
 	private:
+		//Components
 		Buffers* buffers;
 		Core* core;
-		// Manager signals
+
+		// Manager signal
 		unsigned short currentChar;
+		bool bufferSelection;
 
 		//settings
-		bool verbose = true;;
+		bool verbose;
 
 	public:
-		Manager(Buffers* b, Core* c){
+		Manager(Buffers* b, Core* c, bool dbg = false){
 			core = c;
 			buffers = b;
+			verbose = dbg;
 		}
 
-		// init(){};
-		//
-		// TODO: this is base match.
+		// TODO: add RunMultiChar.
 		bool runBase(const char* input){
 			
+			// Signals handled by manager
+			currentChar = 0;
+			bufferSelection = 0;
+
+			// Local variables to emulate clock cycles.
 			int CC = 0;
 			CoreOUT newPC;
-			currentChar = 0;
-			bool bufferSelection = 0;
-			buffers->pushTo(bufferSelection, 0);
-
 			bool stage2Ready = false;
 			bool stage1Ready = false;
 			bool stage3Ready = false;
-			Instruction* s12;
-			Instruction* s23;
+			Instruction* s12 = NULL;
+			Instruction* s23 = NULL;
 			unsigned short PC12;
 
-			// Simulate clock cycle
+			// Reset to known empty state.
+			core->reset();
+			buffers->flush();
+
+			// Load first instruction PC.
+			buffers->pushTo(bufferSelection, 0);
+
 			if (verbose) printf("\nInitiating match of string %s\n", input);
 
-			while (!core->isAccepted() && input[currentChar]!= '\0'){
+			// Simulate clock cycle
+			while (!core->isAccepted() && core->isRunning()){
 			
 
-				if (verbose) printf("[CC%x] Char:%c, Active buffer: FIFO%x\n", CC, input[currentChar], bufferSelection);
+				if (verbose) printf("[CC%d] Char:%c, Active buffer: FIFO%d\n", CC, input[currentChar], bufferSelection);
 
-				// Read on rise
-				// Only propagate forward
+				/* To simulate the stages being concurrent, all values used by stages 2 and 3 
+				 * must be read at the start of the cycle, emulating values being read on rise. */
 
-				// To simulate the stages being concurrent, all values used by stages 2 and 3 must be read at the start of the cycle, emulating values being read on rise. 
+				// Check at the start whether each stage meets the conditions for being executed.
 				stage1Ready = !buffers->isEmpty(bufferSelection);
 				stage2Ready = core->isStage2Ready();
 				stage3Ready = core->isStage3Ready();
+				// Save the inter-stage registers for use.
 				s12 = core->getStage12();
 				s23 = core->getStage23();
 				PC12 = core->getPC12();
 
+				/* EXEC */
 
 				// Stage 1: retrieve newPC from active buffer and load instruction.
 				if (stage1Ready) core->stage1(buffers->getPC(bufferSelection));
 				else {core->stage1();}
 
+				// Stage 2: sets valid, running and accept signals. 
 				if (stage2Ready) {
 					newPC = core->stage2(PC12, s12, input[currentChar]);
-					// PUSH AND WRITES MUST BE DONE AT END OF CLOCK.
+
+					// Handle the returned value, if it's a valid one. 
 					if (core->isValid()){
 						// Push to correct buffer
 						if (newPC.isActive()){
@@ -372,21 +415,22 @@ class Manager {
 							if (verbose) printf("\t\tPushing PC%x to inactive FIFO%x\n", newPC.getPC(), !bufferSelection);
 							buffers->pushTo(!bufferSelection, newPC.getPC());
 						}
-						// update currentchar
+					// Invalid values that must be handled are returned by ACCEPT, ACCEPT_PARTIAL and END_WITHOUT_ACCEPTING.
+					// Apart from these, the only way for a computation to end is by reaching end of string without ACCEPT.
 					} else if (core->isAccepted()){
-						// return success.
 						return true;
 					} else if (!core->isRunning()){
-						// shit ended.
+						return false;
 					} 
 
 				} 
 
-
+				// Stage 3: Only executed by a SPLIT instruction
 				if (stage3Ready){
 
 					newPC = core->stage3(s23);
-
+					
+					// Result of a SPLIT should always be valid.
 					if (core->isValid()){
 						// Push to correct buffer
 						if (newPC.isActive()){
@@ -399,29 +443,31 @@ class Manager {
 					}
 				}
 
+				/* WRITEBACK 
+				 * Values should only be modified at the end of the clock cycle */
 
-
+				// Only if stage 1 was executed, consume the instruction that was loaded from the buffer.
+				// Otherwise, it would risk consuming a value added by stage 2 in the same cycle.
 				if (stage1Ready){
 					
 					if (verbose) printf("\t\tConsumed PC%x from active FIFO%x. Continue operating on char %c\n", buffers->getPC(bufferSelection), bufferSelection, input[currentChar]);
 					buffers->popPC(bufferSelection);				
 				} 
-
+				// If buffer was empty both now and at the start of the cycle, it's safe to deem it empty and switch to handling a new character
+				// TODO: Test if this fails in the face of multiple SPLITs
 				else if (buffers->isEmpty(bufferSelection)){ // Buffer ping pong.
 					currentChar ++;
 					if (verbose) printf("\t\tFIFO%x is empty, activating FIFO%x and moving to char %c\n", bufferSelection, !bufferSelection, input[currentChar]);
 					bufferSelection = !bufferSelection;
 				}
+				
 				CC++;
-			
-
+				// End the cycle AFTER having processed the '\0' (may be consumed by an ACCEPT) or if no more instructions are left to be processed.
+				if (input[currentChar] == '\0' || buffers->areAllEmpty()) break;
+				
 			}
 
 			return false;
-
-			// core.reset;
-			// buffers.flush;
-
 		}
 };
 
@@ -432,7 +478,7 @@ class SoftwareCICERO {
 		// Components
 		Instruction program[INSTR_MEM_SIZE];
 		Buffers buffers = Buffers(2);
-		Core core = Core(&program[0], &buffers);
+		Core core = Core(&program[0]);
 		Manager manager = Manager(&buffers, &core);
 
 		// Settings
@@ -441,14 +487,14 @@ class SoftwareCICERO {
 		bool hasProgram = false;
 
 	public:
-		SoftwareCICERO(){
+		SoftwareCICERO(bool dbg = false){
 
 			multiChar = false;
 			hasProgram = false;
 			buffers = Buffers(2);
-			core = Core(&program[0], &buffers);
-			manager = Manager(&buffers, &core);
-			verbose = true;
+			core = Core(&program[0], dbg);
+			manager = Manager(&buffers, &core, dbg);
+			verbose = dbg;
 		}
 
 		void setProgram(const char* filename){
@@ -496,13 +542,18 @@ class SoftwareCICERO {
 		}
 };
 
+//TODO: testing
+//TODO: init functions to make sure core, buffer and manager reset correctly.
+//TODO: split into headers and files to make it work like a decent library.
+
 int main(void){
 		
-	SoftwareCICERO CICERO = SoftwareCICERO();
+	SoftwareCICERO CICERO = SoftwareCICERO(true);
 	CICERO.setProgram("a.out");
-	bool match = CICERO.match("ababcd");
+	bool match = CICERO.match("eeee");
 	
 	if (match) printf("Success!");
+	else printf("No match!");
 
 	return 0;
 }
