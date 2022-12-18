@@ -218,7 +218,7 @@ class Core {
 			running = true;
 			s12 = NULL;
 			s23 = NULL;
-			PC12 = NULL;
+			PC12 = 0;
 
 		}
 
@@ -232,6 +232,7 @@ class Core {
 		}
 
 		bool isStage3Ready(){
+			printf("[DEBUG] Missing instruction: %X\n", s23);
 			if (s23 != NULL && s23->getType() == SPLIT) return true;
 			else return false;
 		}
@@ -245,11 +246,14 @@ class Core {
 			s12 = NULL;
 		}
 		void stage1(unsigned short PC){
-			// WRONG; NEEDS TO GET PC FROM BUFFERS.
 			s12 = &program[PC];
 			PC12 = PC;
 			if (verbose) { printf("\t(PC%d)(S1) ",PC); s12->printType(PC); printf("\n");}
 		};
+
+		void stage2(){
+			s23 = NULL;
+		}
 
 		CoreOUT stage2(unsigned short sPC12, Instruction* stage12, char currentChar){
 			// Stage 2: get next PC and handle ACCEPT
@@ -296,6 +300,7 @@ class Core {
 
 				case MATCH_ANY:
 					valid = true;
+					if (verbose) { printf("\t\tCharacters matched: input %c to ANY\n", currentChar );}
 					newPC = (CoreOUT(sPC12+1, false));
 					break;
 
@@ -321,12 +326,12 @@ class Core {
 			return newPC;
 		};
 
-		CoreOUT stage3(Instruction* stage23){
-			if (verbose) { printf("\t(S3)"); stage23->printType(-1); printf("\n");}
-			CoreOUT newPC = CoreOUT(stage23->getData(), true);
+		CoreOUT stage3(Instruction* s23){
+			if (verbose) { printf("\t(S3)"); s23->printType(-1); printf("\n");}
+			CoreOUT newPC = CoreOUT(s23->getData(), true);
 
 			//Shouldn't write backwards, but since stage 3 is the last operation it doesn't cause problems.
-			s23 = NULL;
+			//Ultime parole famose
 			return newPC;
 		};
 };
@@ -409,10 +414,10 @@ class Manager {
 					if (core->isValid()){
 						// Push to correct buffer
 						if (newPC.isActive()){
-							if (verbose) printf("\t\tPushing PC%x to active FIFO%x\n", newPC.getPC(), bufferSelection);
+							if (verbose) printf("\t\tPushing PC%d to active FIFO%x\n", newPC.getPC(), bufferSelection);
 							buffers->pushTo(bufferSelection, newPC.getPC());
 						} else {
-							if (verbose) printf("\t\tPushing PC%x to inactive FIFO%x\n", newPC.getPC(), !bufferSelection);
+							if (verbose) printf("\t\tPushing PC%d to inactive FIFO%x\n", newPC.getPC(), !bufferSelection);
 							buffers->pushTo(!bufferSelection, newPC.getPC());
 						}
 					// Invalid values that must be handled are returned by ACCEPT, ACCEPT_PARTIAL and END_WITHOUT_ACCEPTING.
@@ -423,7 +428,7 @@ class Manager {
 						return false;
 					} 
 
-				} 
+				} else { core->stage2(); }
 
 				// Stage 3: Only executed by a SPLIT instruction
 				if (stage3Ready){
@@ -434,10 +439,10 @@ class Manager {
 					if (core->isValid()){
 						// Push to correct buffer
 						if (newPC.isActive()){
-							if (verbose) printf("\t\tPushing PC%x to active FIFO%x\n", newPC.getPC(), bufferSelection);
+							if (verbose) printf("\t\tPushing PC%d to active FIFO%x\n", newPC.getPC(), bufferSelection);
 							buffers->pushTo(bufferSelection, newPC.getPC());
 						} else {
-							if (verbose) printf("\t\tPushing PC%x to inactive FIFO%x\n", newPC.getPC(), !bufferSelection);
+							if (verbose) printf("\t\tPushing PC%d to inactive FIFO%x\n", newPC.getPC(), !bufferSelection);
 							buffers->pushTo(!bufferSelection, newPC.getPC());
 						}
 					}
@@ -450,7 +455,7 @@ class Manager {
 				// Otherwise, it would risk consuming a value added by stage 2 in the same cycle.
 				if (stage1Ready){
 					
-					if (verbose) printf("\t\tConsumed PC%x from active FIFO%x. Continue operating on char %c\n", buffers->getPC(bufferSelection), bufferSelection, input[currentChar]);
+					if (verbose) printf("\t\tConsumed PC%d from active FIFO%x. Continue operating on char %c\n", buffers->getPC(bufferSelection), bufferSelection, input[currentChar]);
 					buffers->popPC(bufferSelection);				
 				} 
 				// If buffer was empty both now and at the start of the cycle, it's safe to deem it empty and switch to handling a new character
@@ -463,7 +468,7 @@ class Manager {
 				
 				CC++;
 				// End the cycle AFTER having processed the '\0' (may be consumed by an ACCEPT) or if no more instructions are left to be processed.
-				if (input[currentChar] == '\0' || buffers->areAllEmpty()) break;
+				if (buffers->areAllEmpty() && !core->isStage2Ready() && !core->isStage3Ready()) break;
 				
 			}
 
@@ -550,10 +555,26 @@ int main(void){
 		
 	SoftwareCICERO CICERO = SoftwareCICERO(true);
 	CICERO.setProgram("a.out");
-	bool match = CICERO.match("eeee");
+
+
+//	bool match = CICERO.match("LADH");
+//	if (match) printf("Case 1: Success!");
+//	else printf("Case 1: No match!");
+
+//	match = CICERO.match("LADHM");
 	
-	if (match) printf("Success!");
-	else printf("No match!");
+//	if (match) printf("Case 2: Success!");
+//	else printf("Case 2: No match!");
+
+	bool match = CICERO.match("ADDG");
+	
+	if (match) printf("Case 3: Success!");
+	else printf("Case 3: No match!");
+
+//	match = CICERO.match("ADDD");
+	
+//	if (match) printf("Case 4: Success!");
+//	else printf("Case 4: No match!");
 
 	return 0;
 }
