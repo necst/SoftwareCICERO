@@ -1,5 +1,6 @@
 #include <iostream>
 #include <queue>
+#include <cstring>
 #include <vector>
 
 using namespace std;
@@ -62,7 +63,7 @@ class Instruction {
 				printf("ACCEPT");
 				break;
 			case 1:
-				printf("SPLIT{%d,%d}", PC, this->getData());
+				printf("SPLIT{%d,%d}", PC+1, this->getData());
 				break;
 			case 2:
 				printf("MATCH(%c)", this->getData());
@@ -232,7 +233,6 @@ class Core {
 		}
 
 		bool isStage3Ready(){
-			printf("[DEBUG] Missing instruction: %X\n", s23);
 			if (s23 != NULL && s23->getType() == SPLIT) return true;
 			else return false;
 		}
@@ -329,9 +329,6 @@ class Core {
 		CoreOUT stage3(Instruction* s23){
 			if (verbose) { printf("\t(S3)"); s23->printType(-1); printf("\n");}
 			CoreOUT newPC = CoreOUT(s23->getData(), true);
-
-			//Shouldn't write backwards, but since stage 3 is the last operation it doesn't cause problems.
-			//Ultime parole famose
 			return newPC;
 		};
 };
@@ -467,8 +464,8 @@ class Manager {
 				}
 				
 				CC++;
-				// End the cycle AFTER having processed the '\0' (may be consumed by an ACCEPT) or if no more instructions are left to be processed.
-				if (buffers->areAllEmpty() && !core->isStage2Ready() && !core->isStage3Ready()) break;
+				// End the cycle AFTER having processed the '\0' (which can be consumed by an ACCEPT) or if no more instructions are left to be processed.
+				if (strlen(input) < currentChar || buffers->areAllEmpty() && !core->isStage2Ready() && !core->isStage3Ready()) break;
 				
 			}
 
@@ -553,28 +550,28 @@ class SoftwareCICERO {
 
 int main(void){
 		
-	SoftwareCICERO CICERO = SoftwareCICERO(true);
+	SoftwareCICERO CICERO = SoftwareCICERO();
 	CICERO.setProgram("a.out");
 
 
-//	bool match = CICERO.match("LADH");
-//	if (match) printf("Case 1: Success!");
-//	else printf("Case 1: No match!");
+	bool match = CICERO.match("LADH");
+	if (match) printf("Case 1: Success!");
+	else printf("Case 1: No match!");
 
-//	match = CICERO.match("LADHM");
+	match = CICERO.match("LADHM");
 	
-//	if (match) printf("Case 2: Success!");
-//	else printf("Case 2: No match!");
+	if (match) printf("Case 2: Success!");
+	else printf("Case 2: No match!");
 
-	bool match = CICERO.match("ADDG");
+	match = CICERO.match("ADDG");
 	
 	if (match) printf("Case 3: Success!");
 	else printf("Case 3: No match!");
 
-//	match = CICERO.match("ADDD");
+	match = CICERO.match("ADDD");
 	
-//	if (match) printf("Case 4: Success!");
-//	else printf("Case 4: No match!");
+	if (match) printf("Case 4: Success!");
+	else printf("Case 4: No match!");
 
 	return 0;
 }
