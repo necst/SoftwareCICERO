@@ -312,7 +312,7 @@ class Core {
 				case NOT_MATCH:
 					if (char(stage12->getData())!=currentChar){
 						valid = true;
-						newPC = CoreOUT( sPC12+1, false);
+						newPC = CoreOUT( sPC12+1, true);
 					} else {
 						newPC = CoreOUT();
 					}
@@ -329,6 +329,7 @@ class Core {
 		CoreOUT stage3(Instruction* s23){
 			if (verbose) { printf("\t(S3)"); s23->printType(-1); printf("\n");}
 			CoreOUT newPC = CoreOUT(s23->getData(), true);
+
 			return newPC;
 		};
 };
@@ -432,16 +433,13 @@ class Manager {
 
 					newPC = core->stage3(s23);
 					
-					// Result of a SPLIT should always be valid.
-					if (core->isValid()){
-						// Push to correct buffer
-						if (newPC.isActive()){
-							if (verbose) printf("\t\tPushing PC%d to active FIFO%x\n", newPC.getPC(), bufferSelection);
-							buffers->pushTo(bufferSelection, newPC.getPC());
-						} else {
-							if (verbose) printf("\t\tPushing PC%d to inactive FIFO%x\n", newPC.getPC(), !bufferSelection);
-							buffers->pushTo(!bufferSelection, newPC.getPC());
-						}
+					// Push to correct buffer
+					if (newPC.isActive()){
+						if (verbose) printf("\t\tPushing PC%d to active FIFO%x\n", newPC.getPC(), bufferSelection);
+						buffers->pushTo(bufferSelection, newPC.getPC());
+					} else {
+						if (verbose) printf("\t\tPushing PC%d to inactive FIFO%x\n", newPC.getPC(), !bufferSelection);
+						buffers->pushTo(!bufferSelection, newPC.getPC());
 					}
 				}
 
@@ -550,28 +548,15 @@ class SoftwareCICERO {
 
 int main(void){
 		
-	SoftwareCICERO CICERO = SoftwareCICERO();
-	CICERO.setProgram("a.out");
+	SoftwareCICERO CICERO = SoftwareCICERO(true);
+	CICERO.setProgram("./test/programs/1");
 
 
-	bool match = CICERO.match("LADH");
-	if (match) printf("Case 1: Success!");
-	else printf("Case 1: No match!");
+	if(CICERO.match("RKMS")) printf("regex %d 	, input %d (len: %d)	, match True\n",0,0,256);
+	else printf("regex %d 	, input %d (len: %d)	, match False\n",0,0,256);
 
-	match = CICERO.match("LADHM");
-	
-	if (match) printf("Case 2: Success!");
-	else printf("Case 2: No match!");
-
-	match = CICERO.match("ADDG");
-	
-	if (match) printf("Case 3: Success!");
-	else printf("Case 3: No match!");
-
-	match = CICERO.match("ADDD");
-	
-	if (match) printf("Case 4: Success!");
-	else printf("Case 4: No match!");
+//	if(CICERO.match("b'MSIIGATRLQNDKSDTYSAGPCYAGGCSAFTPRGTCGKDWDLGEQTCASGFCTSQPLCARIKKTQVCGLRYSSKGKDPLVSAEWDSRGAPYVRCTYDADLIDTQAQVDQFVSMFGESPSLAERYCMRGVKNTAGELVSRVSSDADPAGGWCRKWYSAHRGPDQDAALGSFCIKNPGAADCKCINRASDPVYQKVKTLHAYPDQCWYVPCAADVGELKMGTQRDTPTNCPTQVCQIVFNMLDDGSVTMDDVKNTINCDFSKYVPPPPPPKPTPPTPPTPPTPPTPPTPPTPPTPRPVHNRKVMFFVAGAVLVAILISTVRW'")) printf("regex %d 	, input %d (len: %d)	, match True\n",0,1,320);
+//	else printf("regex %d 	, input %d (len: %d)	, match False\n",0,1,320);
 
 	return 0;
 }
