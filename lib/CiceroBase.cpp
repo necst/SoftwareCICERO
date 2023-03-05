@@ -419,7 +419,7 @@ namespace CiceroBase {
 			
 			CC++;
 			// End the cycle AFTER having processed the '\0' (which can be consumed by an ACCEPT) or if no more instructions are left to be processed.
-			if (strlen(input) < currentChar || buffers->areAllEmpty() && !core->isStage2Ready() && !core->isStage3Ready()) break;
+			if (strlen(input) < currentChar || (buffers->areAllEmpty() && !core->isStage2Ready() && !core->isStage3Ready())) break;
 			
 		}
 
@@ -445,7 +445,7 @@ namespace CiceroBase {
 
 			for (i = 0; i < INSTR_MEM_SIZE && !feof(fp); i++){
 
-				fscanf(fp,"%x",&instr);
+				fscanf(fp,"%hx",&instr);
 				program[i] = Instruction(instr);
 				fscanf(fp,"\n");
 
