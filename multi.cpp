@@ -30,7 +30,7 @@ class CoreOUT {
 	public:
 		CoreOUT(){
 			PC = 0;
-			CC_ID = 0; //TODO: check this is coherent with usage
+			CC_ID = 0;
 		};
 
 		CoreOUT(unsigned short PC){
@@ -134,16 +134,14 @@ class Instruction {
 // Container for all the buffers - permits to instantiate a variable number of buffers.
 class Buffers {
 	private:
-		vector<queue<CoreOUT>> buffers;
-		int HEAD;
+		vector<queue<unsigned short>> buffers;
 		int size; //2**W 
 	public:
 		Buffers(int n){ 
 			size = n;
-			HEAD = 0;
 			buffers.reserve(n);
 			for (int i = 0; i < n; i++){
-				buffers.push_back(queue<CoreOUT>());
+				buffers.push_back(queue<unsigned short>());
 			}
 		}
 
@@ -153,30 +151,23 @@ class Buffers {
 					buffers[i].pop();
 				}
 			}
-			HEAD = 0;
 		}
 
-		void printQueue(unsigned short CC_ID){
-			queue<CoreOUT> q = buffers[(HEAD + CC_ID)%size];
-			if (!q.empty()){
-				//printf("Queue %d (HEAD: %d) next item: %d, last:%d", CC_ID, HEAD, q.front().getPC(),  q.back().getPC());
-				//printf("\n");
+				void printQueue(unsigned short CC_ID){
+			if (!buffers[CC_ID].empty()){
+				printf("Queue %d  next item: %d, last:%d", CC_ID, buffers[CC_ID].front(),  buffers[CC_ID].back());
+				printf("\n");
 			}
-			//else printf("Queue %d empty\n", CC_ID);
+			else printf("Queue %d empty\n", CC_ID);
 		}
 
 		bool isEmpty(unsigned short CC_ID){
-			return buffers[(HEAD + CC_ID)%size].empty();
+			return buffers[(CC_ID)%size].empty();
 		}
 
-		void slide(unsigned short slide){
-
-			HEAD = (HEAD + slide)% size;
-		}
-		 
 
 		// Expects to be told which is the buffer holding first character of sliding window.
-		bool hasInstructionReady(){
+		bool hasInstructionReady(unsigned short HEAD){
 			for (int i = 0; i < size -1 ; i++){ // Excludes the last buffer of the sliding window.
 				if (!buffers[(HEAD + i) % size].empty()) {
 					return true;
@@ -185,11 +176,13 @@ class Buffers {
 			return false;
 		}
 
-		unsigned short getFirstNotEmpty(){
+		unsigned short getFirstNotEmpty(unsigned short HEAD){
 			for (int i = 0; i < size - 1 ; i++){ 	// Cannot return the inactive one.
+													// TODO: head used only here in round check. other uses round.
+				//printf("Find first instruction CC_ID:%d,%d",i+HEAD, buffers[(i + HEAD)%size].front());
+
 				if (!buffers[(HEAD + i) % size].empty()) {
-					//printf("FIFO%d (CC_ID %d) not empty, content:%d, back: %d\n", HEAD+i, i, buffers[(HEAD + i) % size].front().getPC(),  buffers[(HEAD + i) % size].back().getPC());
-					return i;
+					return (HEAD + i) %size;
 				}
 			}
 			return size; //To be considered as all empty.
@@ -207,22 +200,20 @@ class Buffers {
 		}
 
 		CoreOUT getPC(unsigned short CC_ID){
-			//CoreOUT PC = buffers[(HEAD + CC_ID)%size].front();
-			CoreOUT PC = CoreOUT(buffers[(HEAD + CC_ID)%size].front().getPC(), CC_ID);
+			CoreOUT PC = CoreOUT(buffers[(CC_ID)%size].front(), CC_ID);
 			return PC;
 		}
 
 		CoreOUT popPC(unsigned short CC_ID){
-			//CoreOUT PC = buffers[(HEAD+CC_ID)%size].front();
-			CoreOUT PC = CoreOUT(buffers[(HEAD + CC_ID)%size].front().getPC(), CC_ID);
-			buffers[(HEAD+CC_ID)%size].pop();
+			CoreOUT PC = CoreOUT(buffers[(CC_ID)%size].front(), CC_ID);
+			buffers[(CC_ID)%size].pop();
 			return PC;
 		}
 
-		void pushTo(unsigned short CC_ID, CoreOUT PC){
+		void pushTo(unsigned short CC_ID, unsigned short PC){
 
 			if (CC_ID < size){ 
-				buffers[(CC_ID + HEAD)%size].push(PC);
+				buffers[(CC_ID)%size].push(PC);
 			}
 			else 
 				fprintf(stderr, "[X] Pushing to non-existing buffer %d.\n", CC_ID);
@@ -301,7 +292,7 @@ class Core {
 		void stage1(CoreOUT bufferOUT){
 			s12 = &program[bufferOUT.getPC()];
 			CO12 = bufferOUT;
-			if (verbose) { printf("\t(PC%d)(S1) ",bufferOUT.getPC()); s12->printType(bufferOUT.getPC()); printf("\n");}
+			if (verbose) { printf("\t(PC%d)(CC_ID%d)(S1) ",bufferOUT.getPC(),bufferOUT.getCC_ID()); s12->printType(bufferOUT.getPC()); printf("\n");}
 		};
 
 		void stage2(){
@@ -312,12 +303,13 @@ class Core {
 			// Stage 2: get next PC and handle ACCEPT
 			if (stage12->getType() == 1) s23 = stage12;
 			else s23 = NULL;
+			CO23 = sCO12;
 			CoreOUT newPC;
 			running = true;
 			accept = false;
 			valid = false;
 
-			if (verbose) { printf("\t(PC%d)(S2) ", sCO12.getPC()); stage12->printType(sCO12.getPC());printf("\n");}
+			if (verbose) { printf("\t(PC%d)(CC_ID%d)(S2) ", sCO12.getPC(),sCO12.getCC_ID()); stage12->printType(sCO12.getPC());printf("\n");}
 
 			switch(stage12->getType()){
 
@@ -382,7 +374,7 @@ class Core {
 
 		CoreOUT stage3(CoreOUT sCO23, Instruction* stage23){
 			//TODO: add a normal call without hardcoded -1
-			if (verbose) { printf("\t(S3)"); stage23->printType(-1); printf("\n");}
+			if (verbose) { printf("\t(PC%d)(CC_ID%d)(S3)", sCO23.getPC(), sCO23.getCC_ID()); stage23->printType(sCO23.getPC()+1); printf("\n");}
 			CoreOUT newPC = CoreOUT(stage23->getData(), sCO23.getCC_ID());
 
 			return newPC;
@@ -399,27 +391,22 @@ class Manager {
 		unsigned short currentChar;
 		unsigned short CC_ID;
 
-		//TODO: this needs to become logic for interacting w/buffers. Should point to first
-		//buffer in sliding window (CC_ID = 0)
-		//Head?
-
-		//TODO: W?/CC_ID both.
-		// [CC_ID] [CC_ID + 1] ... [] CharID = currentChar + CC_ID
+		unsigned short HEAD;
 		vector<bool> CCIDBitmap; 
-		unsigned short W;
+		unsigned short size;
 
 		//settings
 		bool verbose;
 
 	public:
-		Manager(Buffers* b, Core* c, bool dbg = false){
+		Manager(Buffers* b, Core* c, unsigned short W, bool dbg = false){
 			core = c;
 			buffers = b;
 			verbose = dbg;
-			//TODO: parametrize W. and remove it for size... useless.
-			W = 1;
-			CCIDBitmap.reserve(pow(2,W));
-			for (int i = 0; i < pow(2,W); i++){
+			size = W;
+			HEAD = 0;
+			CCIDBitmap.reserve(W);
+			for (int i = 0; i < W; i++){
 				CCIDBitmap.push_back(false);
 			}
 
@@ -432,11 +419,27 @@ class Manager {
 			//Check buffers
 			for (unsigned short i = 0; i < CCIDBitmap.size(); i++){
 				CCIDBitmap[i] = !buffers->isEmpty(i) | ((core->getCO12().getCC_ID() == i)&core->getStage12() != NULL) | ((core->getCO23().getCC_ID() == i)&core->getStage23() != NULL)  ;
-				//printf("Core12: %d\n", core->getCO12().getCC_ID() );
-				//printf("Core23: %d\n", core->getCO23().getCC_ID() );
-				//printf("CC_ID: %d conditions %d,%d,%d -> result: %d\n",i, !buffers->isEmpty(i), ((core->getCO12().getCC_ID() == i)&core->getStage12() != NULL) , ((core->getCO23().getCC_ID() == i)&core->getStage23() != NULL), (bool)CCIDBitmap[i]) ;
+
+			/*	printf("Core12: %d\n", core->getCO12().getCC_ID() );
+				printf("Core23: %d\n", core->getCO23().getCC_ID() );
+				printf("CC_ID: %d conditions %d,%d,%d -> result: %d\n",i, !buffers->isEmpty(i), ((core->getCO12().getCC_ID() == i)&core->getStage12() != NULL) , ((core->getCO23().getCC_ID() == i)&core->getStage23() != NULL), (bool)CCIDBitmap[i]) ;
+				*/
 			}
 			
+		}
+
+		unsigned short checkBitmap(){
+			
+			unsigned short slide = 0;
+			for (unsigned short i = 0; i < CCIDBitmap.size(); i++){
+				if (CCIDBitmap[(HEAD+i)%size] == 0) slide += 1;
+				else break;
+			}
+			return slide;
+			
+		}
+		int mod(int k, int n) {
+			return ((k %= n) < 0) ? k+n : k;
 		}
 
 
@@ -444,6 +447,7 @@ class Manager {
 			
 			// Signals handled by manager
 			currentChar = 0; // In MultiChar it refers to first character in sliding window.
+			HEAD = 0;
 
 
 			// Local variables to emulate clock cycles.
@@ -460,9 +464,9 @@ class Manager {
 			// Reset to known empty state.
 			core->reset();
 			buffers->flush();
-
+//TODO: reset bitmap
 			// Load first instruction PC.
-			buffers->pushTo(0, CoreOUT(0,0));
+			buffers->pushTo(0, 0);
 			CCIDBitmap[0] = true;
 
 			if (verbose) printf("\nInitiating match of string %s\n", input);
@@ -470,7 +474,6 @@ class Manager {
 			// Simulate clock cycle
 			while (!core->isAccepted() && core->isRunning()){
 			
-				//TODO: fix print w/ additional info
 				if (verbose) printf("[CC%d] Window first character: %c\n", CC, input[currentChar]);
 
 				/* READ
@@ -478,8 +481,7 @@ class Manager {
 				 * must be read at the start of the cycle, emulating values being read on rise. */
 
 				// Check at the start whether each stage meets the conditions for being executed.
-				//stage1Ready = !buffers->isEmpty(bufferHEAD); //TODO: new verification of stage1ready to account for multichar
-				stage1Ready = buffers->hasInstructionReady(); //TODO: new verification of stage1ready to account for multichar
+				stage1Ready = buffers->hasInstructionReady(HEAD);
 				stage2Ready = core->isStage2Ready(); 
 				stage3Ready = core->isStage3Ready(); 
 
@@ -494,19 +496,20 @@ class Manager {
 				/* EXEC */
 
 				// Stage 1: retrieve newPC from active buffer and load instruction. 
-				if (stage1Ready) core->stage1(buffers->getPC(buffers->getFirstNotEmpty()));
+				if (stage1Ready) core->stage1(buffers->getPC(buffers->getFirstNotEmpty(HEAD)));
 				else {core->stage1();} //Empty run to clear signals.
 
 				// Stage 2: sets valid, running and accept signals. 
 				if (stage2Ready) {
-					newPC = core->stage2(CO12, s12, input[currentChar+CO12.getCC_ID()]);
+					//printf("HEAD: %d, HEADsize:%d, CC_ID%d, currchar %d %c\n", HEAD, HEAD%size, CO12.getCC_ID(), currentChar, input[currentChar]);
+
+					newPC = core->stage2(CO12, s12, input[currentChar+mod((CO12.getCC_ID()-HEAD),(size))]);
 
 					// Handle the returned value, if it's a valid one. 
 					if (core->isValid()){
-						if (verbose) printf("\t\tPushing PC%d to FIFO%x\n", newPC.getPC(), newPC.getCC_ID()); 
+						if (verbose) printf("\t\tPushing PC%d to FIFO%d (beforemod: %d)\n", newPC.getPC(), newPC.getCC_ID()%size, newPC.getCC_ID()); 
 						// Push to correct buffer
-						buffers->pushTo(newPC.getCC_ID(), newPC); 
-						buffers->printQueue(newPC.getCC_ID());
+						buffers->pushTo(newPC.getCC_ID()%size, newPC.getPC()); 
 					// Invalid values that must be handled are returned by ACCEPT, ACCEPT_PARTIAL and END_WITHOUT_ACCEPTING.
 					// Apart from these, the only way for a computation to end is by reaching end of string without ACCEPT.
 					} else if (core->isAccepted()){
@@ -522,10 +525,9 @@ class Manager {
 
 					newPC = core->stage3(CO23,s23);
 
-					if (verbose) printf("\t\tPushing PC%d to FIFO%x\n", newPC.getPC(),  newPC.getCC_ID()); 
+					if (verbose) printf("\t\tPushing PC%d to FIFO%x\n", newPC.getPC(), newPC.getCC_ID()%size); 
 					// Push to correct buffer
-					buffers->pushTo(newPC.getCC_ID(), newPC); 
-					buffers->printQueue(newPC.getCC_ID());
+					buffers->pushTo(newPC.getCC_ID()%size, newPC.getPC()); 
 				}
 
 				/* WRITEBACK 
@@ -534,43 +536,20 @@ class Manager {
 				// Only if stage 1 was executed, consume the instruction that was loaded from the buffer.
 				// Otherwise, it would risk consuming a value added by stage 2 in the same cycle.
 				if (stage1Ready){
-					if (verbose) printf("\t\tConsumed PC%d from FIFO%d, relating to character %c\n", buffers->getPC(buffers->getFirstNotEmpty()).getPC(), buffers->getFirstNotEmpty(), input[currentChar + core->getCO12().getCC_ID()]);
-					buffers->popPC(buffers->getFirstNotEmpty());		
-					if (verbose) printf("\t\tNext PC from FIFO%d: %d\n", buffers->getFirstNotEmpty(), buffers->getPC(buffers->getFirstNotEmpty()).getPC());
+					if (verbose) printf("\t\tConsumed PC%d from FIFO%d, relating to character %c\n", core->getCO12().getPC(), core->getCO12().getCC_ID(), input[currentChar+mod((CO12.getCC_ID()-HEAD),(size))]);
+					
+					buffers->popPC(core->getCO12().getCC_ID());		
+					if (verbose) printf("\t\tNext PC from FIFO%d: %d\n", buffers->getFirstNotEmpty(HEAD), buffers->getPC(buffers->getFirstNotEmpty(HEAD)).getPC());
 				} 
-				//TODO: this becomes sliding window update (update also head/buffer select when sliding. Needs to account for stage 3 too, which it didn't in base case!!
-				// If buffer was empty both now and at the start of the cycle, it's safe to deem it empty and switch to handling a new character TODO: check logic with multichar
-				// TODO: cannot be else if anymore, can it?
-				// TODO: updateBitmap() here
-				//printf("Bitmap status bf: ");
-				//for (int i=0; i< CCIDBitmap.size(); i++) printf("%d, ",(bool) CCIDBitmap[i]);
-				//printf("\n");
 
 				updateBitmap();
-				printf("\tActive threads at end of cycle: ");
-				for (int i=0; i< CCIDBitmap.size(); i++) {
-					if ((bool)CCIDBitmap[i]) printf("%d ", i);
-				}
-				printf("\n");
-				for (int i=0; i< CCIDBitmap.size(); i++) {
-					buffers->printQueue(i);
-				}
+				
 
-				if ((bool)CCIDBitmap[0] == false){ // Conditions for sliding the window.
+				if (checkBitmap() != 0){ // Conditions for sliding the window.
 										   
-					
-					//TODO: unsigned short i = slidingOP()	
-					unsigned short slide;
-					for (int i = 0; i < CCIDBitmap.size(); i++){
-						if ((bool)CCIDBitmap[i]==true) {
-							slide = i;
-							break;
-						}
-					}
-					currentChar += slide; // Move the window + i
-					buffers->slide(slide);
-					if (verbose) printf("\t\t%x Threads are inactive, sliding window. New first char in window: %c\n", slide, input[currentChar]);
-					//TODO: I have my theoretical how-to-slide approach. Only need to keep buffers and CC_IDs coordinated. 
+					if (verbose) printf("\t\t%x Threads are inactive, sliding window. New first char in window: %c\n", checkBitmap(), input[currentChar]);
+					currentChar += checkBitmap(); // Move the window + i
+					HEAD = (HEAD + checkBitmap())%size;
 				}
 				
 				CC++;
@@ -592,10 +571,9 @@ class SoftwareCICERO {
 		Instruction program[INSTR_MEM_SIZE];
 		Buffers buffers = Buffers(2);
 		Core core = Core(&program[0]);
-		Manager manager = Manager(&buffers, &core);
+		Manager manager = Manager(&buffers, &core, 2);
 
 		// Settings
-		bool multiChar = false; 
 		bool verbose = true;
 		bool hasProgram = false;
 
@@ -604,20 +582,11 @@ class SoftwareCICERO {
 
 			if (W == 0) W = 1;
 
-			if (W > 1) {
-
-				multiChar = true;
-				buffers = Buffers(pow(2,W));
-				
-			} else { 
-
-				multiChar = false;
-				buffers = Buffers(2);
-			}
+			buffers = Buffers(W+1);
 
 			hasProgram = false;
 			core = Core(&program[0], dbg);
-			manager = Manager(&buffers, &core, dbg);
+			manager = Manager(&buffers, &core, W+1, dbg);
 			verbose = dbg;
 		}
 
@@ -664,11 +633,10 @@ class SoftwareCICERO {
 		}
 };
 
-//TODO: split into headers and files to make it work like a decent library.
 
 int main(void){
 		
-	SoftwareCICERO CICERO = SoftwareCICERO(1,true);
+	SoftwareCICERO CICERO = SoftwareCICERO(2,true);
 	CICERO.setProgram("./runningex");
 
 
