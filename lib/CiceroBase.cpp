@@ -458,17 +458,24 @@ namespace CiceroBase {
 			}
 
 			hasProgram = true;
+			fclose(fp);
 
 		} else {
+			hasProgram = false;
 			fprintf(stderr, "[X] Could not open program file %s for reading.\n", filename);
 		}
 	};
+
+	bool SoftwareCICERO::isProgramSet(){
+
+		return hasProgram;
+	}
 
 	bool SoftwareCICERO::match(const char* input ){
 
 		if (!hasProgram){
 			fprintf(stderr, "[X] No program is loaded to match the string against.\n");
-			return NULL;
+			return false;
 		} 
 
 		return manager.runBase(input);

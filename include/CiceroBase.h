@@ -150,6 +150,7 @@ namespace CiceroBase {
 			SoftwareCICERO(bool dbg = false);
 
 			void setProgram(const char* filename);
+			bool isProgramSet();
 			
 			bool match(const char* input);
 	};
