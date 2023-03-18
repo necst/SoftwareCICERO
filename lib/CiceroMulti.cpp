@@ -422,7 +422,7 @@ namespace CiceroMulti {
 
 				// Handle the returned value, if it's a valid one. 
 				if (core->isValid()){
-					if (verbose) printf("\t\tPushing PC%d to FIFO%d (beforemod: %d)\n", newPC.getPC(), newPC.getCC_ID()%size, newPC.getCC_ID()); 
+					if (verbose) printf("\t\tPushing PC%d to FIFO%d\n", newPC.getPC(), newPC.getCC_ID()%size); 
 					// Push to correct buffer
 					buffers->pushTo(newPC.getCC_ID()%size, newPC.getPC()); 
 				// Invalid values that must be handled are returned by ACCEPT, ACCEPT_PARTIAL and END_WITHOUT_ACCEPTING.

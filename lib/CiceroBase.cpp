@@ -345,7 +345,7 @@ namespace CiceroBase {
 				* must be read at the start of the cycle, emulating values being read on rise. */
 
 			// Check at the start whether each stage meets the conditions for being executed.
-			stage1Ready = !buffers->isEmpty(bufferSelection); //TODO: new verification of stage1ready to account for multichar
+			stage1Ready = !buffers->isEmpty(bufferSelection); 
 			stage2Ready = core->isStage2Ready(); 
 			stage3Ready = core->isStage3Ready(); 
 
@@ -410,7 +410,6 @@ namespace CiceroBase {
 				buffers->popPC(bufferSelection);				
 			} 
 			// If buffer was empty both now and at the start of the cycle, it's safe to deem it empty and switch to handling a new character
-			// TODO: Test if this fails in the face of multiple SPLITs
 			else if (buffers->isEmpty(bufferSelection)){ // Buffer ping pong.
 				currentChar ++;
 				if (verbose) printf("\t\tFIFO%x is empty, activating FIFO%x and moving to char %c\n", bufferSelection, !bufferSelection, input[currentChar]);
