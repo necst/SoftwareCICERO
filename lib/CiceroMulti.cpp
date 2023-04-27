@@ -1,4 +1,5 @@
 #include "CiceroMulti.h"
+#include "Buffers.h"
 #include <cmath>
 #include <cstring>
 #include <iostream>
@@ -13,13 +14,14 @@ CiceroMulti::CiceroMulti(unsigned short W, bool dbg) {
     if (W == 0)
         W = 1;
 
-    buffers = Buffers(W + 1);
-
     hasProgram = false;
-    core = Core(&program[0], dbg);
-    manager = Manager(&buffers, &core, W + 1, dbg);
     verbose = dbg;
+
+    manager =
+        new Manager(new Buffers(W + 1), new Core(&program[0], dbg), W + 1, dbg);
 }
+
+CiceroMulti::~CiceroMulti() { free(manager); }
 
 void CiceroMulti::setProgram(const char *filename) {
     FILE *fp = fopen(filename, "r");
@@ -69,7 +71,7 @@ bool CiceroMulti::match(const char *input) {
         return false;
     }
 
-    return manager.runMultiChar(input);
+    return manager->runMultiChar(input);
 }
 
 } // namespace Cicero

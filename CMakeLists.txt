@@ -25,3 +25,18 @@ target_link_libraries(
   cicero
   CiceroMulti
 )
+
+add_executable(
+  test_multi
+  test/newTestMulti.cpp
+)
+
+target_link_libraries(
+  test_multi
+  CiceroMulti
+)
+
+add_test(
+  NAME test_multi
+  COMMAND test_multi
+)

@@ -1,6 +1,7 @@
 #include "Manager.h"
 
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 
 namespace Cicero {
@@ -15,6 +16,11 @@ Manager::Manager(Buffers *b, Core *c, unsigned short W, bool dbg) {
     for (int i = 0; i < W; i++) {
         CCIDBitmap.push_back(false);
     }
+}
+
+Manager::~Manager() {
+    free(core);
+    free(buffers);
 }
 
 void Manager::updateBitmap() {

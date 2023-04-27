@@ -25,6 +25,8 @@ class Manager {
 
   public:
     Manager(Buffers *b, Core *c, unsigned short W, bool dbg = false);
+    ~Manager();
+
     void updateBitmap();
     unsigned short checkBitmap();
 

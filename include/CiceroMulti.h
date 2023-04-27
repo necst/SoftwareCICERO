@@ -1,42 +1,40 @@
 #ifndef CICEROMULTI_H
 #define CICEROMULTI_H
 
+#include <cmath>
+#include <cstring>
 #include <iostream>
 #include <queue>
-#include <cstring>
 #include <vector>
-#include <cmath>
 
+#include "Buffers.h"
+#include "Const.h"
+#include "Core.h"
 #include "CoreOUT.h"
 #include "Instruction.h"
-#include "Buffers.h"
-#include "Core.h"
 #include "Manager.h"
-#include "Const.h"
 
-namespace Cicero
-{
-	// Wrapper class that holds and inits all components.
-	class CiceroMulti
-	{
-	private:
-		// Components
-		Instruction program[INSTR_MEM_SIZE];
-		Buffers buffers = Buffers(2);
-		Core core = Core(&program[0]);
-		Manager manager = Manager(&buffers, &core, 2);
+namespace Cicero {
+// Wrapper class that holds and inits all components.
+class CiceroMulti {
+  private:
+    // Components
+    Instruction program[INSTR_MEM_SIZE];
 
-		// Settings
-		bool verbose = true;
-		bool hasProgram = false;
+    Manager *manager;
 
-	public:
-		CiceroMulti(unsigned short W = 1, bool dbg = false);
+    // Settings
+    bool verbose = true;
+    bool hasProgram = false;
 
-		void setProgram(const char *filename);
-		bool isProgramSet();
+  public:
+    CiceroMulti(unsigned short W = 1, bool dbg = false);
+    ~CiceroMulti();
 
-		bool match(const char *input);
-	};
-}
+    void setProgram(const char *filename);
+    bool isProgramSet();
+
+    bool match(const char *input);
+};
+} // namespace Cicero
 #endif
