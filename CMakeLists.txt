@@ -9,6 +9,11 @@ add_library(
   CiceroMulti
   SHARED
   lib/CiceroMulti.cpp
+  lib/Core.cpp
+  lib/CoreOUT.cpp
+  lib/Instruction.cpp
+  lib/Manager.cpp
+  lib/Buffer.cpp
 )
 
 add_executable(
