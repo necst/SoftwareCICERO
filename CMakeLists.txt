@@ -36,7 +36,15 @@ target_link_libraries(
   CiceroMulti
 )
 
+include(CTest)
+
 add_test(
   NAME test_multi
   COMMAND test_multi
+)
+
+target_compile_definitions(
+  test_multi
+  PRIVATE
+  TEST_INPUT_PATH="${CMAKE_CURRENT_SOURCE_DIR}/test/"
 )
