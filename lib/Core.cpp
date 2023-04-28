@@ -1,8 +1,10 @@
 #include "Core.h"
 #include "Const.h"
+#include "Engine.h"
 
 #include <cstddef>
 #include <cstdio>
+#include <string>
 
 namespace Cicero {
 
@@ -152,6 +154,114 @@ CoreOUT Core::stage3(CoreOUT sCO23, Instruction *stage23) {
 
     return newPC;
 }
-CoreOUT Core::runClock(char inputChar) {}
+
+ClockResult Core::runClock(std::string input, int currentWindowIndex,
+                           int currentBufferIndex, int windowSize,
+                           Buffers *buffers) {
+
+    CoreOUT newPC;
+    /* READ
+     * To simulate the stages being concurrent, all values used by stages 2
+     * and 3 must be read at the start of the cycle, emulating values being
+     * read on rise. */
+
+    // Check at the start whether each stage meets the conditions for being
+    // executed.
+    bool stage1Ready = buffers->hasInstructionReady(currentBufferIndex);
+    bool stage2Ready = isStage2Ready();
+    bool stage3Ready = isStage3Ready();
+
+    // Save the inter-stage registers for use.
+    Instruction *savedStage12 = getPipelineRegister12();
+    Instruction *savedStage23 = getPipelineRegister23();
+    CoreOUT savedOut12 = getOutStage1();
+    CoreOUT savedOut23 = getOutStage2();
+
+    if (verbose)
+        printf("\tStages deemed ready: %x, %x, %x\n", stage1Ready, stage2Ready,
+               stage3Ready);
+
+    /* EXEC */
+    // Stage 1: retrieve newPC from active buffer and load instruction.
+    if (stage1Ready) {
+        stage1(buffers->getPC(buffers->getFirstNotEmpty(currentBufferIndex)));
+    } else {
+        // Set intermediate registers to zero
+        stage1Stall();
+    }
+
+    // Stage 2: sets valid, running and accept signals.
+    if (!stage2Ready) {
+        // Set intermediate registers to zero
+        stage2Stall();
+    } else {
+        int inputIndex =
+            currentWindowIndex +
+            Engine::mod((savedOut12.getCC_ID() - currentBufferIndex),
+                        (windowSize));
+
+        if (inputIndex > input.size()) {
+            // We are out of the string! Do not create a new thread i.e. not add
+            // anything to the buffers
+        } else {
+            newPC = stage2(savedOut12, savedStage12, input[inputIndex]);
+
+            // Handle the returned value, if it's a valid one.
+            if (isValid()) {
+                if (verbose)
+                    printf("\t\tPushing PC%d to FIFO%d\n", newPC.getPC(),
+                           newPC.getCC_ID() % windowSize);
+                // Push to correct buffer
+                buffers->pushTo(newPC.getCC_ID() % windowSize, newPC.getPC());
+                // Invalid values that must be handled are returned by ACCEPT,
+                // ACCEPT_PARTIAL and END_WITHOUT_ACCEPTING. Apart from these,
+                // the only way for a computation to end is by reaching end of
+                // string without ACCEPT.
+            } else if (isAccepted()) {
+                return ACCEPTED;
+            } else if (!isRunning()) {
+                return REFUSED;
+            }
+        }
+
+    } // Empty run to clear signals
+
+    // Stage 3: Only executed by a SPLIT instruction
+    if (stage3Ready) {
+
+        newPC = stage3(savedOut23, savedStage23);
+
+        if (verbose)
+            printf("\t\tPushing PC%d to FIFO%x\n", newPC.getPC(),
+                   newPC.getCC_ID() % windowSize);
+        // Push to correct buffer
+        buffers->pushTo(newPC.getCC_ID() % windowSize, newPC.getPC());
+    }
+
+    /* WRITEBACK
+     * Values should only be modified at the end of the clock cycle */
+
+    // Only if stage 1 was executed, consume the instruction that was loaded
+    // from the buffer. Otherwise, it would risk consuming a value added by
+    // stage 2 in the same cycle.
+    if (stage1Ready) {
+        if (verbose)
+            printf(
+                "\t\tConsumed PC%d from FIFO%d, relating to character %c\n",
+                getOutStage1().getPC(), getOutStage1().getCC_ID(),
+                input[currentWindowIndex +
+                      Engine::mod((savedOut12.getCC_ID() - currentBufferIndex),
+                                  (windowSize))]);
+
+        buffers->popPC(getOutStage1().getCC_ID());
+        if (verbose)
+            printf("\t\tNext PC from FIFO%d: %d\n",
+                   buffers->getFirstNotEmpty(currentBufferIndex),
+                   buffers->getPC(buffers->getFirstNotEmpty(currentBufferIndex))
+                       .getPC());
+    }
+
+    return CONTINUE;
+}
 
 } // namespace Cicero

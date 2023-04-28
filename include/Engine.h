@@ -9,8 +9,6 @@
 
 namespace Cicero {
 
-enum EngineClockResult { CONTINUE, ACCEPTED, REFUSED };
-
 class Engine {
   private:
     // Components
@@ -31,7 +29,7 @@ class Engine {
     // settings
     bool verbose;
 
-    EngineClockResult runClock();
+    ClockResult runClock();
 
     void updateBitmap();
     unsigned short checkBitmap();

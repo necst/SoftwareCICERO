@@ -1,7 +1,11 @@
 #pragma once
 
+#include "Buffers.h"
+#include "Const.h"
 #include "CoreOUT.h"
 #include "Instruction.h"
+
+#include <string>
 
 namespace Cicero {
 
@@ -47,8 +51,9 @@ class Core {
     CoreOUT stage2(CoreOUT sCO12, Instruction *stage12, char currentChar);
 
     CoreOUT stage3(CoreOUT sCO23, Instruction *stage23);
-
-    CoreOUT runClock(char inputChar);
+    ClockResult runClock(std::string input, int currentWindowIndex,
+                         int currentBufferIndex, int windowSize,
+                         Buffers *buffers);
 };
 
 } // namespace Cicero
