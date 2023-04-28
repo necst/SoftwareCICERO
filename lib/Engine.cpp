@@ -1,4 +1,4 @@
-#include "Manager.h"
+#include "Engine.h"
 #include "Buffers.h"
 #include "Instruction.h"
 
@@ -9,7 +9,7 @@
 
 namespace Cicero {
 
-Manager::Manager(Instruction *program, unsigned short W, bool dbg) {
+Engine::Engine(Instruction *program, unsigned short W, bool dbg) {
     core = std::make_unique<Core>(program, dbg);
     buffers = std::make_unique<Buffers>(W + 1);
     verbose = dbg;
@@ -21,7 +21,7 @@ Manager::Manager(Instruction *program, unsigned short W, bool dbg) {
     }
 }
 
-void Manager::updateBitmap() {
+void Engine::updateBitmap() {
     // Check buffers
     for (unsigned short i = 0; i < CCIDBitmap.size(); i++) {
         CCIDBitmap[i] =
@@ -31,7 +31,7 @@ void Manager::updateBitmap() {
     }
 }
 
-unsigned short Manager::checkBitmap() {
+unsigned short Engine::checkBitmap() {
 
     unsigned short slide = 0;
     for (unsigned short i = 0; i < CCIDBitmap.size(); i++) {
@@ -43,11 +43,11 @@ unsigned short Manager::checkBitmap() {
     return slide;
 }
 
-int Manager::mod(int k, int n) { return ((k %= n) < 0) ? k + n : k; }
+int Engine::mod(int k, int n) { return ((k %= n) < 0) ? k + n : k; }
 
-bool Manager::runMultiChar(const char *input) {
+bool Engine::runMultiChar(const char *input) {
 
-    // Signals handled by manager
+    // Signals handled by Engine
     currentChar =
         0; // In MultiChar it refers to first character in sliding window.
     HEAD = 0;

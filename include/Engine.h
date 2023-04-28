@@ -8,13 +8,13 @@
 
 namespace Cicero {
 
-class Manager {
+class Engine {
   private:
     // Components
     std::unique_ptr<Buffers> buffers;
     std::unique_ptr<Core> core;
 
-    // Manager signal
+    // Engine signal
     unsigned short currentChar;
     unsigned short CC_ID;
 
@@ -26,7 +26,7 @@ class Manager {
     bool verbose;
 
   public:
-    Manager(Instruction *program, unsigned short W, bool dbg = false);
+    Engine(Instruction *program, unsigned short W, bool dbg = false);
 
     void updateBitmap();
     unsigned short checkBitmap();

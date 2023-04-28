@@ -12,8 +12,8 @@
 #include "Const.h"
 #include "Core.h"
 #include "CoreOUT.h"
+#include "Engine.h"
 #include "Instruction.h"
-#include "Manager.h"
 
 namespace Cicero {
 // Wrapper class that holds and inits all components.
@@ -22,7 +22,7 @@ class CiceroMulti {
     // Components
     Instruction program[INSTR_MEM_SIZE];
 
-    std::unique_ptr<Manager> manager;
+    std::unique_ptr<Engine> engine;
 
     // Settings
     bool verbose = true;

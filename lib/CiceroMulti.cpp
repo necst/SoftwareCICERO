@@ -18,7 +18,7 @@ CiceroMulti::CiceroMulti(unsigned short W, bool dbg) {
     hasProgram = false;
     verbose = dbg;
 
-    manager = std::make_unique<Manager>(program, W + 1, dbg);
+    engine = std::make_unique<Engine>(program, W + 1, dbg);
 }
 
 void CiceroMulti::setProgram(const char *filename) {
@@ -69,7 +69,7 @@ bool CiceroMulti::match(const char *input) {
         return false;
     }
 
-    return manager->runMultiChar(input);
+    return engine->runMultiChar(input);
 }
 
 } // namespace Cicero

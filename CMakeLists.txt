@@ -12,7 +12,7 @@ add_library(
   lib/Core.cpp
   lib/CoreOUT.cpp
   lib/Instruction.cpp
-  lib/Manager.cpp
+  lib/Engine.cpp
   lib/Buffer.cpp
 )
 
