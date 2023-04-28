@@ -2,6 +2,8 @@
 
 #include "Buffers.h"
 #include "Core.h"
+#include "Instruction.h"
+#include <memory>
 #include <vector>
 
 namespace Cicero {
@@ -9,8 +11,8 @@ namespace Cicero {
 class Manager {
   private:
     // Components
-    Buffers *buffers;
-    Core *core;
+    std::unique_ptr<Buffers> buffers;
+    std::unique_ptr<Core> core;
 
     // Manager signal
     unsigned short currentChar;
@@ -24,8 +26,7 @@ class Manager {
     bool verbose;
 
   public:
-    Manager(Buffers *b, Core *c, unsigned short W, bool dbg = false);
-    ~Manager();
+    Manager(Instruction *program, unsigned short W, bool dbg = false);
 
     void updateBitmap();
     unsigned short checkBitmap();

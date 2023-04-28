@@ -8,14 +8,8 @@ namespace Cicero {
 
 Core::Core(Instruction *p, bool dbg) {
     program = p;
-    accept = false;
-    valid = false;
-    running = true;
-    s12 = NULL;
-    s23 = NULL;
-    CO12 = CoreOUT();
-    CO23 = CoreOUT();
     verbose = dbg;
+    reset();
 }
 
 void Core::reset() {
@@ -32,19 +26,9 @@ bool Core::isAccepted() { return accept; }
 bool Core::isValid() { return valid; }
 bool Core::isRunning() { return running; }
 
-bool Core::isStage2Ready() {
-    if (s12 != NULL)
-        return true;
-    else
-        return false;
-}
+bool Core::isStage2Ready() { return s12 != NULL; }
 
-bool Core::isStage3Ready() {
-    if (s23 != NULL && s23->getType() == SPLIT)
-        return true;
-    else
-        return false;
-}
+bool Core::isStage3Ready() { return s23 != NULL && s23->getType() == SPLIT; }
 
 Instruction *Core::getStage12() { return s12; }
 Instruction *Core::getStage23() { return s23; }
@@ -72,7 +56,7 @@ void Core::stage2() { s23 = NULL; }
 
 CoreOUT Core::stage2(CoreOUT sCO12, Instruction *stage12, char currentChar) {
     // Stage 2: get next PC and handle ACCEPT
-    if (stage12->getType() == 1)
+    if (stage12->getType() == SPLIT)
         s23 = stage12;
     else
         s23 = NULL;

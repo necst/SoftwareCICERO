@@ -1,14 +1,17 @@
 #include "Manager.h"
+#include "Buffers.h"
+#include "Instruction.h"
 
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <memory>
 
 namespace Cicero {
 
-Manager::Manager(Buffers *b, Core *c, unsigned short W, bool dbg) {
-    core = c;
-    buffers = b;
+Manager::Manager(Instruction *program, unsigned short W, bool dbg) {
+    core = std::make_unique<Core>(program, dbg);
+    buffers = std::make_unique<Buffers>(W + 1);
     verbose = dbg;
     size = W;
     HEAD = 0;
@@ -16,11 +19,6 @@ Manager::Manager(Buffers *b, Core *c, unsigned short W, bool dbg) {
     for (int i = 0; i < W; i++) {
         CCIDBitmap.push_back(false);
     }
-}
-
-Manager::~Manager() {
-    free(core);
-    free(buffers);
 }
 
 void Manager::updateBitmap() {

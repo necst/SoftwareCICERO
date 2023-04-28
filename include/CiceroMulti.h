@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstring>
 #include <iostream>
+#include <memory>
 #include <queue>
 #include <vector>
 
@@ -21,7 +22,7 @@ class CiceroMulti {
     // Components
     Instruction program[INSTR_MEM_SIZE];
 
-    Manager *manager;
+    std::unique_ptr<Manager> manager;
 
     // Settings
     bool verbose = true;
@@ -29,7 +30,6 @@ class CiceroMulti {
 
   public:
     CiceroMulti(unsigned short W = 1, bool dbg = false);
-    ~CiceroMulti();
 
     void setProgram(const char *filename);
     bool isProgramSet();

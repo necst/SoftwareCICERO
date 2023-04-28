@@ -3,6 +3,7 @@
 #include <cmath>
 #include <cstring>
 #include <iostream>
+#include <memory>
 #include <queue>
 #include <vector>
 
@@ -17,11 +18,8 @@ CiceroMulti::CiceroMulti(unsigned short W, bool dbg) {
     hasProgram = false;
     verbose = dbg;
 
-    manager =
-        new Manager(new Buffers(W + 1), new Core(&program[0], dbg), W + 1, dbg);
+    manager = std::make_unique<Manager>(program, W + 1, dbg);
 }
-
-CiceroMulti::~CiceroMulti() { free(manager); }
 
 void CiceroMulti::setProgram(const char *filename) {
     FILE *fp = fopen(filename, "r");
