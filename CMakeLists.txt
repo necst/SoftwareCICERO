@@ -47,5 +47,5 @@ add_test(
 target_compile_definitions(
         test_multi
         PRIVATE
-        TEST_INPUT_PATH= "${CMAKE_CURRENT_SOURCE_DIR}/test/"
+        TEST_INPUT_PATH="${CMAKE_CURRENT_SOURCE_DIR}/test/"
 )
