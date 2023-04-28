@@ -52,14 +52,11 @@ void Core::stage1(CoreOUT bufferOUT) {
     }
 };
 
-void Core::stage2() { s23 = NULL; }
+void Core::stage2() { s23 = nullptr; }
 
 CoreOUT Core::stage2(CoreOUT sCO12, Instruction *stage12, char currentChar) {
     // Stage 2: get next PC and handle ACCEPT
-    if (stage12->getType() == SPLIT)
-        s23 = stage12;
-    else
-        s23 = NULL;
+    s23 = stage12->getType() == SPLIT ? stage12 : nullptr;
     CO23 = sCO12;
     CoreOUT newPC;
     running = true;
@@ -151,6 +148,9 @@ CoreOUT Core::stage3(CoreOUT sCO23, Instruction *stage23) {
     CoreOUT newPC = CoreOUT(stage23->getData(), sCO23.getCC_ID());
 
     return newPC;
+}
+CoreOUT Core::runClock(char inputChar) {
+
 };
 
 } // namespace Cicero

@@ -5,6 +5,7 @@
 #include <iostream>
 #include <memory>
 #include <queue>
+#include <utility>
 #include <vector>
 
 namespace Cicero {
@@ -61,7 +62,7 @@ void CiceroMulti::setProgram(const char *filename) {
 
 bool CiceroMulti::CiceroMulti::isProgramSet() { return hasProgram; }
 
-bool CiceroMulti::match(const char *input) {
+bool CiceroMulti::match(std::string input) {
 
     if (!hasProgram) {
         fprintf(stderr,
@@ -69,7 +70,7 @@ bool CiceroMulti::match(const char *input) {
         return false;
     }
 
-    return engine->runMultiChar(input);
+    return engine->runMultiChar(std::move(input));
 }
 
 } // namespace Cicero

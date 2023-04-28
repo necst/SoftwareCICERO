@@ -152,6 +152,7 @@ int main() {
                           << "; CorrectResult do not correspond. Expected "
                           << correctResult.matchResult << " but got "
                           << matchResult;
+                return -1;
             }
         }
     }

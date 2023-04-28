@@ -48,6 +48,8 @@ class Core {
     CoreOUT stage2(CoreOUT sCO12, Instruction *stage12, char currentChar);
 
     CoreOUT stage3(CoreOUT sCO23, Instruction *stage23);
+
+    CoreOUT runClock(char inputChar);
 };
 
 } // namespace Cicero

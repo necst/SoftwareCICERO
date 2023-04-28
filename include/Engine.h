@@ -5,8 +5,15 @@
 #include "Instruction.h"
 #include <memory>
 #include <vector>
+#include <string>
 
 namespace Cicero {
+
+enum EngineClockResult {
+    CONTINUE,
+    ACCEPTED,
+    REFUSED
+};
 
 class Engine {
   private:
@@ -14,9 +21,11 @@ class Engine {
     std::unique_ptr<Buffers> buffers;
     std::unique_ptr<Core> core;
 
+    std::string input;
+    int currentClockCycle;
+
     // Engine signal
     unsigned short currentChar;
-    unsigned short CC_ID;
 
     unsigned short HEAD;
     std::vector<bool> CCIDBitmap;
@@ -25,15 +34,17 @@ class Engine {
     // settings
     bool verbose;
 
+    EngineClockResult runClock();
+
   public:
     Engine(Instruction *program, unsigned short W, bool dbg = false);
 
     void updateBitmap();
     unsigned short checkBitmap();
 
-    int mod(int k, int n);
+    static int mod(int k, int n);
 
-    bool runMultiChar(const char *input);
+    bool runMultiChar(std::string _input);
 };
 
 } // namespace Cicero

@@ -34,7 +34,7 @@ class CiceroMulti {
     void setProgram(const char *filename);
     bool isProgramSet();
 
-    bool match(const char *input);
+    bool match(std::string input);
 };
 } // namespace Cicero
 #endif
