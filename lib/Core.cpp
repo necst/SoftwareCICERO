@@ -16,48 +16,51 @@ void Core::reset() {
     accept = false;
     valid = false;
     running = true;
-    s12 = NULL;
-    s23 = NULL;
-    CO12 = CoreOUT();
-    CO23 = CoreOUT();
+    pipelineRegister12 = nullptr;
+    pipelineRegister23 = nullptr;
+    outStage1 = CoreOUT();
+    outStage2 = CoreOUT();
 }
 
-bool Core::isAccepted() { return accept; }
-bool Core::isValid() { return valid; }
-bool Core::isRunning() { return running; }
+bool Core::isAccepted() const { return accept; }
+bool Core::isValid() const { return valid; }
+bool Core::isRunning() const { return running; }
 
-bool Core::isStage2Ready() { return s12 != NULL; }
+bool Core::isStage2Ready() { return pipelineRegister12 != nullptr; }
 
-bool Core::isStage3Ready() { return s23 != NULL && s23->getType() == SPLIT; }
+bool Core::isStage3Ready() {
+    return pipelineRegister23 != nullptr &&
+           pipelineRegister23->getType() == SPLIT;
+}
 
-Instruction *Core::getStage12() { return s12; }
-Instruction *Core::getStage23() { return s23; }
-CoreOUT Core::getCO12() { return CO12; }
-CoreOUT Core::getCO23() { return CO23; }
+Instruction *Core::getPipelineRegister12() { return pipelineRegister12; }
+Instruction *Core::getPipelineRegister23() { return pipelineRegister23; }
+CoreOUT Core::getOutStage1() { return outStage1; }
+CoreOUT Core::getOutStage2() { return outStage2; }
 
-void Core::stage1() {
-    // Sets s12 to NULL if
-    s12 = NULL;
+void Core::stage1Stall() {
+    // Sets pipelineRegister12 to NULL if
+    pipelineRegister12 = nullptr;
 }
 
 // Multichar version
 void Core::stage1(CoreOUT bufferOUT) {
-    s12 = &program[bufferOUT.getPC()];
-    CO12 = bufferOUT;
+    pipelineRegister12 = &program[bufferOUT.getPC()];
+    outStage1 = bufferOUT;
     if (verbose) {
         printf("\t(PC%d)(CC_ID%d)(S1) ", bufferOUT.getPC(),
                bufferOUT.getCC_ID());
-        s12->printType(bufferOUT.getPC());
+        pipelineRegister12->printType(bufferOUT.getPC());
         printf("\n");
     }
-};
+}
 
-void Core::stage2() { s23 = nullptr; }
+void Core::stage2Stall() { pipelineRegister23 = nullptr; }
 
 CoreOUT Core::stage2(CoreOUT sCO12, Instruction *stage12, char currentChar) {
     // Stage 2: get next PC and handle ACCEPT
-    s23 = stage12->getType() == SPLIT ? stage12 : nullptr;
-    CO23 = sCO12;
+    pipelineRegister23 = stage12->getType() == SPLIT ? stage12 : nullptr;
+    outStage2 = sCO12;
     CoreOUT newPC;
     running = true;
     accept = false;
@@ -137,7 +140,7 @@ CoreOUT Core::stage2(CoreOUT sCO12, Instruction *stage12, char currentChar) {
         break;
     }
     return newPC;
-};
+}
 
 CoreOUT Core::stage3(CoreOUT sCO23, Instruction *stage23) {
     if (verbose) {
@@ -149,8 +152,6 @@ CoreOUT Core::stage3(CoreOUT sCO23, Instruction *stage23) {
 
     return newPC;
 }
-CoreOUT Core::runClock(char inputChar) {
-
-};
+CoreOUT Core::runClock(char inputChar) {}
 
 } // namespace Cicero

@@ -16,7 +16,7 @@ Engine::Engine(Instruction *program, unsigned short W, bool dbg) {
     buffers = std::make_unique<Buffers>(W);
     verbose = dbg;
     size = W;
-    HEAD = 0;
+    currentBufferIndex = 0;
     CCIDBitmap.reserve(W);
     for (int i = 0; i < W; i++) {
         CCIDBitmap.push_back(false);
@@ -26,10 +26,11 @@ Engine::Engine(Instruction *program, unsigned short W, bool dbg) {
 void Engine::updateBitmap() {
     // Check buffers
     for (unsigned short i = 0; i < CCIDBitmap.size(); i++) {
-        CCIDBitmap[i] =
-            (!buffers->isEmpty(i)) |
-            ((core->getCO12().getCC_ID() == i) & (core->getStage12() != NULL)) |
-            ((core->getCO23().getCC_ID() == i) & (core->getStage23() != NULL));
+        CCIDBitmap[i] = (!buffers->isEmpty(i)) |
+                        ((core->getOutStage1().getCC_ID() == i) &
+                         (core->getPipelineRegister12() != NULL)) |
+                        ((core->getOutStage2().getCC_ID() == i) &
+                         (core->getPipelineRegister23() != NULL));
     }
 }
 
@@ -37,7 +38,7 @@ unsigned short Engine::checkBitmap() {
 
     unsigned short slide = 0;
     for (unsigned short i = 0; i < CCIDBitmap.size(); i++) {
-        if (CCIDBitmap[(HEAD + i) % size] == 0)
+        if (CCIDBitmap[(currentBufferIndex + i) % size] == 0)
             slide += 1;
         else
             break;
@@ -53,8 +54,8 @@ bool Engine::runMultiChar(std::string _input) {
 
     // Signals handled by Engine
     // In MultiChar it refers to first character in sliding window.
-    currentChar = 0;
-    HEAD = 0;
+    currentWindowIndex = 0;
+    currentBufferIndex = 0;
 
     currentClockCycle = 0;
 
@@ -73,7 +74,7 @@ bool Engine::runMultiChar(std::string _input) {
 
     // Simulate clock cycle
     while (!core->isAccepted() && core->isRunning()) {
-        switch(runClock()) {
+        switch (runClock()) {
         case CONTINUE:
             break;
         case ACCEPTED:
@@ -91,50 +92,54 @@ EngineClockResult Engine::runClock() {
 
     if (verbose)
         printf("[CC%d] Window first character: %c\n", currentClockCycle,
-               input[currentChar]);
+               input[currentWindowIndex]);
 
     /* READ
-         * To simulate the stages being concurrent, all values used by stages 2
-         * and 3 must be read at the start of the cycle, emulating values being
-         * read on rise. */
+     * To simulate the stages being concurrent, all values used by stages 2
+     * and 3 must be read at the start of the cycle, emulating values being
+     * read on rise. */
 
     // Check at the start whether each stage meets the conditions for being
     // executed.
-    bool stage1Ready = buffers->hasInstructionReady(HEAD);
+    bool stage1Ready = buffers->hasInstructionReady(currentBufferIndex);
     bool stage2Ready = core->isStage2Ready();
     bool stage3Ready = core->isStage3Ready();
 
-    if (verbose)
-        printf("\tStages deemed ready: %x, %x, %x\n", stage1Ready,
-               stage2Ready, stage3Ready);
     // Save the inter-stage registers for use.
-    Instruction *s12 = core->getStage12();
-    Instruction *s23 = core->getStage23();
-    CoreOUT CO12 = core->getCO12();
-    CoreOUT CO23 = core->getCO23();
+    Instruction *pipelineRegister12 = core->getPipelineRegister12();
+    Instruction *pipelineRegister23 = core->getPipelineRegister23();
+    CoreOUT outStage1 = core->getOutStage1();
+    CoreOUT outStage2 = core->getOutStage2();
+
+    if (verbose)
+        printf("\tStages deemed ready: %x, %x, %x\n", stage1Ready, stage2Ready,
+               stage3Ready);
 
     /* EXEC */
-
     // Stage 1: retrieve newPC from active buffer and load instruction.
-    if (stage1Ready)
-        core->stage1(buffers->getPC(buffers->getFirstNotEmpty(HEAD)));
-    else {
+    if (stage1Ready) {
+        core->stage1(
+            buffers->getPC(buffers->getFirstNotEmpty(currentBufferIndex)));
+    } else {
         // Set intermediate registers to zero
-        core->stage1();
+        core->stage1Stall();
     }
 
     // Stage 2: sets valid, running and accept signals.
     if (!stage2Ready) {
         // Set intermediate registers to zero
-        core->stage2();
+        core->stage2Stall();
     } else {
-        int inputIndex = currentChar + mod((CO12.getCC_ID() - HEAD), (size));
+        int inputIndex =
+            currentWindowIndex +
+            mod((outStage1.getCC_ID() - currentBufferIndex), (size));
 
         if (inputIndex > input.size()) {
             // We are out of the string! Do not create a new thread i.e. not add
             // anything to the buffers
         } else {
-            newPC = core->stage2(CO12, s12, input[inputIndex]);
+            newPC =
+                core->stage2(outStage1, pipelineRegister12, input[inputIndex]);
 
             // Handle the returned value, if it's a valid one.
             if (core->isValid()) {
@@ -159,7 +164,7 @@ EngineClockResult Engine::runClock() {
     // Stage 3: Only executed by a SPLIT instruction
     if (stage3Ready) {
 
-        newPC = core->stage3(CO23, s23);
+        newPC = core->stage3(outStage2, pipelineRegister23);
 
         if (verbose)
             printf("\t\tPushing PC%d to FIFO%x\n", newPC.getPC(),
@@ -169,23 +174,26 @@ EngineClockResult Engine::runClock() {
     }
 
     /* WRITEBACK
-         * Values should only be modified at the end of the clock cycle */
+     * Values should only be modified at the end of the clock cycle */
 
     // Only if stage 1 was executed, consume the instruction that was loaded
     // from the buffer. Otherwise, it would risk consuming a value added by
     // stage 2 in the same cycle.
     if (stage1Ready) {
         if (verbose)
-            printf(
-                "\t\tConsumed PC%d from FIFO%d, relating to character %c\n",
-                core->getCO12().getPC(), core->getCO12().getCC_ID(),
-                input[currentChar + mod((CO12.getCC_ID() - HEAD), (size))]);
+            printf("\t\tConsumed PC%d from FIFO%d, relating to character %c\n",
+                   core->getOutStage1().getPC(),
+                   core->getOutStage1().getCC_ID(),
+                   input[currentWindowIndex +
+                         mod((outStage1.getCC_ID() - currentBufferIndex),
+                             (size))]);
 
-        buffers->popPC(core->getCO12().getCC_ID());
+        buffers->popPC(core->getOutStage1().getCC_ID());
         if (verbose)
             printf("\t\tNext PC from FIFO%d: %d\n",
-                   buffers->getFirstNotEmpty(HEAD),
-                   buffers->getPC(buffers->getFirstNotEmpty(HEAD)).getPC());
+                   buffers->getFirstNotEmpty(currentBufferIndex),
+                   buffers->getPC(buffers->getFirstNotEmpty(currentBufferIndex))
+                       .getPC());
     }
 
     updateBitmap();
@@ -195,15 +203,15 @@ EngineClockResult Engine::runClock() {
         if (verbose)
             printf("\t\t%x Threads are inactive, sliding window. New first "
                    "char in window: %c\n",
-                   checkBitmap(), input[currentChar]);
-        currentChar += checkBitmap(); // Move the window + i
-        HEAD = (HEAD + checkBitmap()) % size;
+                   checkBitmap(), input[currentWindowIndex]);
+        currentWindowIndex += checkBitmap(); // Move the window + i
+        currentBufferIndex = (currentBufferIndex + checkBitmap()) % size;
     }
 
     currentClockCycle++;
     // End the cycle AFTER having processed the '\0' (which can be consumed
     // by an ACCEPT) or if no more instructions are left to be processed.
-    if (input.size() < currentChar ||
+    if (input.size() < currentWindowIndex ||
         (buffers->areAllEmpty() && !core->isStage2Ready() &&
          !core->isStage3Ready()))
         return REFUSED;

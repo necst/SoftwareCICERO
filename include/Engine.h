@@ -4,16 +4,12 @@
 #include "Core.h"
 #include "Instruction.h"
 #include <memory>
-#include <vector>
 #include <string>
+#include <vector>
 
 namespace Cicero {
 
-enum EngineClockResult {
-    CONTINUE,
-    ACCEPTED,
-    REFUSED
-};
+enum EngineClockResult { CONTINUE, ACCEPTED, REFUSED };
 
 class Engine {
   private:
@@ -25,9 +21,10 @@ class Engine {
     int currentClockCycle;
 
     // Engine signal
-    unsigned short currentChar;
+    unsigned short currentWindowIndex;
 
-    unsigned short HEAD;
+    unsigned short currentBufferIndex;
+    // Bitmap containing which buffers are ready to execute some threads
     std::vector<bool> CCIDBitmap;
     unsigned short size;
 
@@ -36,11 +33,11 @@ class Engine {
 
     EngineClockResult runClock();
 
-  public:
-    Engine(Instruction *program, unsigned short W, bool dbg = false);
-
     void updateBitmap();
     unsigned short checkBitmap();
+
+  public:
+    Engine(Instruction *program, unsigned short W, bool dbg = false);
 
     static int mod(int k, int n);
 
