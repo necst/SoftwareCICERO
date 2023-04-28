@@ -3,8 +3,6 @@
 #include "Instruction.h"
 
 #include <cstdio>
-#include <cstdlib>
-#include <cstring>
 #include <memory>
 #include <string>
 #include <utility>
@@ -15,12 +13,9 @@ Engine::Engine(Instruction *program, unsigned short W, bool dbg) {
     core = std::make_unique<Core>(program, dbg);
     buffers = std::make_unique<Buffers>(W);
     verbose = dbg;
-    size = W;
+    windowSize = W;
     currentBufferIndex = 0;
-    CCIDBitmap.reserve(W);
-    for (int i = 0; i < W; i++) {
-        CCIDBitmap.push_back(false);
-    }
+    CCIDBitmap = std::vector(windowSize, false);
 }
 
 void Engine::updateBitmap() {
@@ -28,17 +23,17 @@ void Engine::updateBitmap() {
     for (unsigned short i = 0; i < CCIDBitmap.size(); i++) {
         CCIDBitmap[i] = (!buffers->isEmpty(i)) |
                         ((core->getOutStage1().getCC_ID() == i) &
-                         (core->getPipelineRegister12() != NULL)) |
+                         (core->getPipelineRegister12() != nullptr)) |
                         ((core->getOutStage2().getCC_ID() == i) &
-                         (core->getPipelineRegister23() != NULL));
+                         (core->getPipelineRegister23() != nullptr));
     }
 }
 
 unsigned short Engine::checkBitmap() {
 
     unsigned short slide = 0;
-    for (unsigned short i = 0; i < CCIDBitmap.size(); i++) {
-        if (CCIDBitmap[(currentBufferIndex + i) % size] == 0)
+    for (unsigned short i = 0; i < windowSize; i++) {
+        if (CCIDBitmap[(currentBufferIndex + i) % windowSize] == 0)
             slide += 1;
         else
             break;
@@ -48,32 +43,34 @@ unsigned short Engine::checkBitmap() {
 
 int Engine::mod(int k, int n) { return ((k %= n) < 0) ? k + n : k; }
 
-bool Engine::runMultiChar(std::string _input) {
+void Engine::reset(std::string newInput) {
+    input = std::move(newInput);
 
-    input = std::move(_input);
-
-    // Signals handled by Engine
-    // In MultiChar it refers to first character in sliding window.
     currentWindowIndex = 0;
     currentBufferIndex = 0;
-
     currentClockCycle = 0;
 
-    // Reset to known empty state.
     core->reset();
     buffers->flush();
-    /*for (int i = 0; i < size; i++){
-      CCIDBitmap.push_back(false);
-    }*/
+
     // Load first instruction PC.
     buffers->pushTo(0, 0);
+
     CCIDBitmap[0] = true;
+    for (int i = 1; i < windowSize; i++) {
+        CCIDBitmap[i] = false;
+    }
+}
+
+bool Engine::runMultiChar(std::string _input) {
+
+    reset(_input);
 
     if (verbose)
         printf("\nInitiating match of string %s\n", input.c_str());
 
     // Simulate clock cycle
-    while (!core->isAccepted() && core->isRunning()) {
+    while (core->isRunning()) {
         switch (runClock()) {
         case CONTINUE:
             break;
@@ -94,8 +91,9 @@ ClockResult Engine::runClock() {
         printf("[CC%d] Window first character: %c\n", currentClockCycle,
                input[currentWindowIndex]);
 
-    ClockResult coreResult = core->runClock(
-        input, currentWindowIndex, currentBufferIndex, size, buffers.get());
+    ClockResult coreResult =
+        core->runClock(input, currentWindowIndex, currentBufferIndex,
+                       windowSize, buffers.get());
 
     // We have already accepted/refused, early quit.
     if (coreResult != CONTINUE) {
@@ -111,7 +109,7 @@ ClockResult Engine::runClock() {
                    "char in window: %c\n",
                    checkBitmap(), input[currentWindowIndex]);
         currentWindowIndex += checkBitmap(); // Move the window + i
-        currentBufferIndex = (currentBufferIndex + checkBitmap()) % size;
+        currentBufferIndex = (currentBufferIndex + checkBitmap()) % windowSize;
     }
 
     // End the cycle AFTER having processed the '\0' (which can be consumed

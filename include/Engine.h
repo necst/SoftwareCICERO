@@ -24,7 +24,7 @@ class Engine {
     unsigned short currentBufferIndex;
     // Bitmap containing which buffers are ready to execute some threads
     std::vector<bool> CCIDBitmap;
-    unsigned short size;
+    unsigned short windowSize;
 
     // settings
     bool verbose;
@@ -38,6 +38,8 @@ class Engine {
     Engine(Instruction *program, unsigned short W, bool dbg = false);
 
     static int mod(int k, int n);
+
+    void reset(std::string newInput);
 
     bool runMultiChar(std::string _input);
 };
