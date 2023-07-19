@@ -245,13 +245,22 @@ ClockResult Core::runClock(std::string input, int currentWindowIndex,
     // from the buffer. Otherwise, it would risk consuming a value added by
     // stage 2 in the same cycle.
     if (stage1Ready) {
-        if (verbose)
-            printf(
-                "\t\tConsumed PC%d from FIFO%d, relating to character %c\n",
-                getOutStage1().getPC(), getOutStage1().getCC_ID(),
-                input[currentWindowIndex +
-                      Engine::mod((savedOut12.getCC_ID() - currentBufferIndex),
-                                  (windowSize))]);
+        if (verbose) {
+            int inputIndex =
+                currentWindowIndex +
+                Engine::mod((savedOut12.getCC_ID() - currentBufferIndex),
+                            (windowSize));
+            if (inputIndex < input.size()) {
+                printf(
+                    "\t\tConsumed PC%d from FIFO%d, relating to character %c\n",
+                    getOutStage1().getPC(), getOutStage1().getCC_ID(),
+                    input[inputIndex]);
+            } else {
+                printf("\t\tConsumed PC%d from FIFO%d, but character index was "
+                       "out of input\n",
+                       getOutStage1().getPC(), getOutStage1().getCC_ID());
+            }
+        }
 
         buffers->popPC(getOutStage1().getCC_ID());
         if (verbose)

@@ -104,11 +104,18 @@ ClockResult Engine::runClock() {
 
     if (checkBitmap() != 0) { // Conditions for sliding the window.
 
-        if (verbose)
-            printf("\t\t%x Threads are inactive, sliding window. New first "
-                   "char in window: %c\n",
-                   checkBitmap(), input[currentWindowIndex]);
         currentWindowIndex += checkBitmap(); // Move the window + i
+        if (verbose) {
+            if (currentWindowIndex < input.size()) {
+                printf("\t\t%x Threads are inactive, sliding window. New "
+                       "first char in window: %c\n",
+                       checkBitmap(), input[currentWindowIndex]);
+            } else {
+                printf("\t\t%x Threads are inactive, sliding window. New "
+                       "window index is out of bounds.\n",
+                       checkBitmap());
+            }
+        }
         currentBufferIndex = (currentBufferIndex + checkBitmap()) % windowSize;
     }
 
