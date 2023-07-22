@@ -27,25 +27,12 @@ target_link_libraries(
         CiceroMulti
 )
 
-add_executable(
-        test_multi
-        test/newTestMulti.cpp
-)
+# Tests
 
-target_link_libraries(
-        test_multi
-        CiceroMulti
-)
+if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
+    include(CTest)
+endif()
 
-include(CTest)
-
-add_test(
-        NAME test_multi
-        COMMAND test_multi
-)
-
-target_compile_definitions(
-        test_multi
-        PRIVATE
-        TEST_INPUT_PATH="${CMAKE_CURRENT_SOURCE_DIR}/test/"
-)
+if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_TESTING)
+    add_subdirectory(test)
+endif()
