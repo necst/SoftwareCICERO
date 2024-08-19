@@ -1,17 +1,24 @@
-#include "CiceroBase.h"
 #include "CiceroMulti.h"
+#include <cstdio>
 
-int main(void){
-		
-	//CiceroBase::SoftwareCICERO CICERO = CiceroBase::SoftwareCICERO(true);
-	CiceroMulti::SoftwareCICERO CICERO = CiceroMulti::SoftwareCICERO(1, true);
-	CICERO.setProgram("./test/programs/1");
-	
-	//CICERO.setProgram("./test/programs/1");
+int main(int argc, char **argv) {
 
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s <path/to/program>", argv[0]);
+        return -1;
+    }
 
-	if(CICERO.match("RKMS")) printf("regex %d 	, input %d (len: %d)	, match True\n",0,0,256);
-	else printf("regex %d 	, input %d (len: %d)	, match False\n",0,0,256);
+    auto CICERO = Cicero::CiceroMulti(1, true);
+    CICERO.setProgram(argv[1]);
 
-	return 0;
+    bool matchResult = CICERO.match("RKMS");
+
+    if (matchResult)
+        printf("regex %d 	, input %d (len: %d)	, match True\n", 0, 0,
+               256);
+    else
+        printf("regex %d 	, input %d (len: %d)	, match False\n", 0, 0,
+               256);
+
+    return 0;
 }

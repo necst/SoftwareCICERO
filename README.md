@@ -2,22 +2,40 @@
 
 Software simulator for the [CICERO](https://github.com/necst/cicero) domain specific architecture.
 
-## Usage
+## Build
 
-Instantiate a CICERO object, with either the base or the multi-character architecture.
+To build the library and the example application, install CMake, Make and a C++ compiler
 
-```cpp
-#include "CiceroBase.h"
-#include "CiceroMulti.h"
+```bash
+mkdir build
+cd build
+cmake ..
+make
 
-CiceroBase::SoftwareCICERO CICERO = CiceroBase::SoftwareCICERO(true);
-CiceroMulti::SoftwareCICERO CICERO = CiceroMulti::SoftwareCICERO(1, true);
+# Optionally run tests
+make test
 ```
 
-- **Verbose setting (true/false)**: print execution information or match silently.
-- **Character window (min 1, multichar only)**: number of active characters in the sliding window.
+## Run example
 
-The simulator takes in input the program files compiled by [CICERO's compiler](https://github.com/necst/cicero_compiler). 
+```bash
+./build/cicero ./test/programs/1
+```
+
+## Use the library
+
+Instantiate a CICERO object specifying:
+
+1. **Character window (min 1, multichar only)**: number of active characters in the sliding window.
+2. **Verbose setting (true/false)**: print execution information or match silently.
+
+```cpp
+#include "CiceroMulti.h"
+
+auto CICERO = Cicero::CiceroMulti(1, true);
+```
+
+The simulator takes in input the program files compiled by [CICERO's compiler](https://github.com/necst/cicero_compiler).
 
 Set the program (can be set multiple times in the object lifetime) and run the desired matches:
 
@@ -26,7 +44,18 @@ CICERO.setProgram("program/to/run");
 
 bool result = CICERO.match("RKMS");
 bool result2 = CICERO.match("RACS");
-
 ```
 
+## Paper Citation
 
+If you find this repository useful, please use the following citations:
+
+```
+@inproceedings{somaini2025cicero,
+    title = {Combining MLIR Dialects with Domain-Specific Architecture for Efficient Regular Expression Matching},
+    author = {Andrea Somaini and Filippo Carloni and Giovanni Agosta and Marco D. Santambrogio and Davide Conficconi},
+    year = 2025,
+    month = {mar},
+    booktitle={2025 IEEE/ACM International Symposium on Code Generation and Optimization (CGO)}
+ } 
+```
